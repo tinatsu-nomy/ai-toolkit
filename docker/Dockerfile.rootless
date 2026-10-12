@@ -1,0 +1,40 @@
+# Rootless variant of docker/Dockerfile.
+#
+# Layers on top of the official runtime image and drops privileges:
+#   - creates a non-root user (default uid/gid 1000, override with build args)
+#   - chowns the app tree so the UI/cron worker (and any runtime codegen such
+#     as prisma) can write inside /app/ai-toolkit
+#   - replaces /start.sh (which needs root for ssh + /etc writes) with a
+#     direct launch of the UI + cron worker
+#
+# Build from the repo root:
+#   docker build -f docker/Dockerfile.rootless \
+#     --build-arg APP_UID=$(id -u) --build-arg APP_GID=$(id -g) \
+#     -t aitoolkit-rootless:latest .
+#
+# Note: the SSH bootstrap from docker/start.sh is intentionally dropped.
+
+ARG BASE_IMAGE=ostris/aitoolkit:latest
+FROM ${BASE_IMAGE}
+
+ARG APP_UID=1000
+ARG APP_GID=1000
+
+# The base image already ships a uid 1000 user ("ubuntu"); reuse it when the
+# requested uid is taken, otherwise create "aitk".
+RUN set -eux; \
+    if id -u "${APP_UID}" >/dev/null 2>&1; then \
+        APP_USER="$(id -un "${APP_UID}")"; \
+    else \
+        getent group "${APP_GID}" >/dev/null 2>&1 || groupadd -g "${APP_GID}" aitk; \
+        useradd -m -u "${APP_UID}" -g "${APP_GID}" -s /bin/bash aitk; \
+        APP_USER=aitk; \
+    fi; \
+    echo "runtime user: ${APP_USER}"; \
+    mkdir -p "/home/${APP_USER}"; \
+    chown -R "${APP_UID}:${APP_GID}" /app "/home/${APP_USER}"
+
+USER ${APP_UID}:${APP_GID}
+WORKDIR /app/ai-toolkit/ui
+
+CMD ["npm", "run", "start"]

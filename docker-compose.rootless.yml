@@ -1,0 +1,31 @@
+services:
+  ai-toolkit:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.rootless
+      args:
+        APP_UID: "${APP_UID:-1000}"
+        APP_GID: "${APP_GID:-1000}"
+    image: ${AI_TOOLKIT_IMAGE:-aitoolkit-rootless:latest}
+    container_name: ${AI_TOOLKIT_CONTAINER:-ai-toolkit-rootless}
+    restart: unless-stopped
+    ports:
+      - "${AI_TOOLKIT_PORT:-8675}:8675"
+    volumes:
+      # uid 1000 in the image is "ubuntu" (see Dockerfile.rootless) -> home /home/ubuntu
+      - ~/.cache/huggingface/hub:/home/ubuntu/.cache/huggingface/hub
+      - ./aitk_db.db:/app/ai-toolkit/aitk_db.db
+      - ./datasets:/app/ai-toolkit/datasets
+      - ./output:/app/ai-toolkit/output
+      - ./config:/app/ai-toolkit/config
+    environment:
+      - AI_TOOLKIT_AUTH=${AI_TOOLKIT_AUTH:-password}
+      - NODE_ENV=production
+      - TZ=UTC
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
