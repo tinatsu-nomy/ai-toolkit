@@ -38,7 +38,7 @@ docker compose -f docker-compose.rootless.yml up -d --build
 
 # 状態・ログ確認
 docker compose -f docker-compose.rootless.yml ps
-docker logs -f "$AI_TOOLKIT_CONTAINER"   # 例: ai-toolkit-rootless
+docker logs -f ai-toolkit-rootless   # .env の AI_TOOLKIT_CONTAINER の値(シェルでは .env が読まれないため直書き)
 
 # 停止 / 完全削除(バインドマウント済みのデータはホスト側に残る)
 docker compose -f docker-compose.rootless.yml stop
@@ -75,19 +75,24 @@ docker compose -f docker-compose.rootless.yml up -d
 ## 4. 本番展開手順
 
 ```bash
-mkdir -p /srv/ai-toolkit/{datasets,output,config} && cd /srv/ai-toolkit
+mkdir -p /srv/ai-toolkit/{docker,datasets,output,config} && cd /srv/ai-toolkit
 touch aitk_db.db
 cp <repo>/.env.example .env
 # .env を本番値へ編集: AI_TOOLKIT_AUTH(必須)/ AI_TOOLKIT_PORT /
 #   AI_TOOLKIT_CONTAINER / AI_TOOLKIT_IMAGE / APP_UID / APP_GID
+# compose の build は context: . に対し docker/Dockerfile.rootless を参照するため
+# docker/ ディレクトリが必要
 cp <repo>/docker/Dockerfile.rootless docker/
 cp <repo>/docker-compose.rootless.yml .
 
-docker compose up -d --build
+# ファイル名が既定(docker-compose.yml)でないため -f の指定が必須
+docker compose -f docker-compose.rootless.yml up -d --build
 
 # 初回のみ DB マイグレーション
-docker exec "$AI_TOOLKIT_CONTAINER" sh -c "cd /app/ai-toolkit/ui && npm run update_db"
-docker restart "$AI_TOOLKIT_CONTAINER"
+# (.env は docker compose にしか読み込まれないため、シェルではコンテナ名を直書きするか
+#   `export $(grep -v '^#' .env | xargs)` で読み込む)
+docker exec ai-toolkit-rootless sh -c "cd /app/ai-toolkit/ui && npm run update_db"
+docker restart ai-toolkit-rootless
 ```
 
 ---
