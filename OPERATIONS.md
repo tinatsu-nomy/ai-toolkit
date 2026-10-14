@@ -75,7 +75,8 @@ docker compose -f docker-compose.rootless.yml up -d
 ## 4. 本番展開手順
 
 ```bash
-mkdir -p /srv/ai-toolkit/{docker,datasets,output,config} && cd /srv/ai-toolkit
+# 展開先は他のコンテナ運用と揃えて /opt/containers/ai-toolkit
+mkdir -p /opt/containers/ai-toolkit/{docker,datasets,output,config} && cd /opt/containers/ai-toolkit
 touch aitk_db.db
 cp <repo>/.env.example .env
 # .env を本番値へ編集: AI_TOOLKIT_AUTH(必須)/ AI_TOOLKIT_PORT /
