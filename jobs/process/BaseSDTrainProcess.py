@@ -345,6 +345,7 @@ class BaseSDTrainProcess(BaseTrainProcess):
                 guidance_scale=sample_item.guidance_scale,
                 guidance_rescale=sample_config.guidance_rescale,
                 num_inference_steps=sample_item.sample_steps,
+                sigmas=sample_item.sigmas,
                 network_multiplier=sample_item.network_multiplier,
                 output_path=output_path,
                 output_ext=sample_config.ext,
@@ -2253,6 +2254,16 @@ class BaseSDTrainProcess(BaseTrainProcess):
                 self.datasets_reg, self.train_config.batch_size, self.sd,
                 pool_datasets=self.train_config.pool_datasets,
             )
+
+        # a fresh text-embedding cache leaves the text encoder on the gpu (the
+        # datasets don't restore placement: that would bounce it per dataset).
+        # Park it once here, before accelerator.prepare brings the unet up.
+        if (
+            self.is_caching_text_embeddings
+            and self.model_config.low_vram
+            and self.sd.text_encoder is not None
+        ):
+            self.sd.text_encoder_to('cpu')
 
         flush()
         self.last_save_step = self.step_num
