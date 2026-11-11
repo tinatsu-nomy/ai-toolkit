@@ -12,14 +12,15 @@ services:
     ports:
       - "${AI_TOOLKIT_PORT:-8675}:8675"
     volumes:
-      # uid 1000 in the image is "ubuntu" (see Dockerfile.rootless) -> home /home/ubuntu
-      - ~/.cache/huggingface/hub:/home/ubuntu/.cache/huggingface/hub
-      - ./aitk_db.db:/app/ai-toolkit/aitk_db.db
+      - ${HF_CACHE_DIR:-./cache/huggingface}:/cache/huggingface
+      - ./data:/data
       - ./datasets:/app/ai-toolkit/datasets
       - ./output:/app/ai-toolkit/output
       - ./config:/app/ai-toolkit/config
     environment:
-      - AI_TOOLKIT_AUTH=${AI_TOOLKIT_AUTH:-password}
+      - AI_TOOLKIT_AUTH=${AI_TOOLKIT_AUTH:?Set AI_TOOLKIT_AUTH in .env}
+      - HF_HOME=/cache/huggingface
+      - HF_HUB_CACHE=/cache/huggingface/hub
       - NODE_ENV=production
       - TZ=UTC
     deploy:

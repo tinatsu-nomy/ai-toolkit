@@ -23,6 +23,8 @@ ARG APP_GID=1000
 # The base image already ships a uid 1000 user ("ubuntu"); reuse it when the
 # requested uid is taken, otherwise create "aitk".
 RUN set -eux; \
+    test "${APP_UID}" -gt 0; \
+    test "${APP_GID}" -gt 0; \
     if id -u "${APP_UID}" >/dev/null 2>&1; then \
         APP_USER="$(id -un "${APP_UID}")"; \
     else \
@@ -32,9 +34,18 @@ RUN set -eux; \
     fi; \
     echo "runtime user: ${APP_USER}"; \
     mkdir -p "/home/${APP_USER}"; \
-    chown -R "${APP_UID}:${APP_GID}" /app "/home/${APP_USER}"
+    mkdir -p /data /cache/huggingface; \
+    rm -f /app/ai-toolkit/aitk_db.db; \
+    ln -s /data/aitk_db.db /app/ai-toolkit/aitk_db.db; \
+    chown -R "${APP_UID}:${APP_GID}" /app /data /cache "/home/${APP_USER}"
+
+COPY docker/start-rootless.sh /usr/local/bin/start-rootless
+RUN chmod 755 /usr/local/bin/start-rootless
+
+ENV HF_HOME=/cache/huggingface
+ENV HF_HUB_CACHE=/cache/huggingface/hub
 
 USER ${APP_UID}:${APP_GID}
 WORKDIR /app/ai-toolkit/ui
 
-CMD ["npm", "run", "start"]
+CMD ["/usr/local/bin/start-rootless"]
